@@ -2,17 +2,54 @@ import { CardComent, CardPost } from "./styles";
 import imgProfile from "../../assets/profile.png"
 import { useState } from "react";
 import { getUser } from "../../services/security";
+import { api } from "../../services/api";
 import { format } from "date-fns";
+import Input from "../../components/Input";
 
 function Post({ data }) {
-
     let signedUser = getUser();
-
-    console.log(data)
-
+    
     const [showComents, setShowComents] = useState(false);
-
     const toggleComents = () => setShowComents(!showComents);
+
+    const [coments, setComents] = useState(data.Answers);
+
+    const [novaResposta, setNovaResposta] = useState({
+        description:""
+    });
+
+    const [showEnviar, setShowEnviar] = useState(false);
+
+    const handleInput = (e) => {
+        if (e.target.value.length >= 10) {
+            setShowEnviar(true)
+        }else{
+            setShowEnviar(false)
+        }
+
+        setNovaResposta({ ...novaResposta, [e.target.id]: e.target.value });
+        
+    }
+
+    const handleSubmitResposta = async (e) => {
+        e.preventDefault();
+
+        if(novaResposta.description.length < 10){
+            alert("A resposta deve conter no mínimo 10 caracteres")
+            return
+        }
+
+        let idPost = data.id;
+        let uri = "/questions/" + idPost + "/answers/";
+
+        try{
+            let newComent = await api.post(uri, {description: novaResposta.description});
+            setComents([...coments, newComent.data]);
+        } catch(error){
+            alert(error);
+        }
+    };
+
 
     return (
         <CardPost>
@@ -36,37 +73,39 @@ function Post({ data }) {
             <footer>
                 <h3 onClick={toggleComents}>
                     {
-                        data.Answers.length === 0 ?
+                        coments.length === 0 ?
                             "Seja o primeiro a comentar" :
-                            `${data.Answers.length} Comentário${data.Answers.length > 1 && "s"}`
+                            `${coments.length} Comentário${coments.length > 1 && "s" , ""}`
                     }
                 </h3>
                 {showComents && (
                     <>
-                        <Coment />
+                        {coments.map(c => <Coment coment={c} />)}
                     </>
                 )}
-                <div>
-                    <input placeholder="Comente este post" />
-                    <button>Enviar</button>
-                </div>
+
+                <form onSubmit={handleSubmitResposta}>
+                    <div>
+                        <Input id="description" required handler={handleInput} />
+                        {showEnviar && <button>Enviar</button>}
+                    </div>
+                </form>
             </footer>
         </CardPost>
     );
 }
 
-function Coment() {
-
+function Coment({ coment }) {
     return (
         <CardComent>
             <header>
-                <img src={imgProfile} />
+                <img src={coment.Student?.image} />
                 <div>
-                    <p>por Ciclano</p>
-                    <span>em 10/10/2021 às 13:00</span>
+                    <p>{coment.Student?.name}</p>
+                    <span>{format(new Date(coment.created_at || coment.createdAt), "dd/MM/yyyy 'às' HH:mm")}</span>
                 </div>
             </header>
-            <p>Este é o comentário</p>
+            <p>{coment.description}</p>
         </CardComent>
     );
 }
